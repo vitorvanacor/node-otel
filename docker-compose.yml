@@ -26,6 +26,16 @@ services:
       - "14268:14268"
       - "14250:14250"
 
+  prometheus:
+    container_name: prometheus
+    image: prom/prometheus:latest
+    volumes:
+      - ./prometheus.yaml:/etc/prometheus/prometheus.yml
+    ports:
+      - "9090:9090"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
   dd-agent:
     image: "datadog/agent:latest"
     environment:

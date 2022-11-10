@@ -1,4 +1,5 @@
 import { withSpan } from "./tracing";
+import { requestCounter } from "./metrics";
 import { context, trace } from "@opentelemetry/api";
 import express from "express";
 
@@ -9,6 +10,7 @@ export async function start() {
   const app = express();
 
   app.get("/", (req, res) => {
+    requestCounter.add(1);
     withSpan("my-traced-lib", "my-span", (span) => {
       span.setAttribute("my-span-attr", "attr created on setAttribute");
       span.addEvent("my-event");

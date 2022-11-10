@@ -19,6 +19,8 @@ exporters:
     endpoint: "jaeger:14250"
     tls:
       insecure: true
+  prometheus:
+    endpoint: "0.0.0.0:9464"
 
 extensions:
   health_check:
@@ -29,4 +31,8 @@ service:
     traces:
       receivers: [otlp]
       processors: [batch]
-      exporters: [logging,zipkin,jaeger]
+      exporters: [zipkin,jaeger]
+    metrics:
+      receivers: [otlp]
+      processors: [batch]
+      exporters: [logging,prometheus]

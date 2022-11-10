@@ -1,46 +1,28 @@
-import {
-  resources as Resources,
-  node as SdkTraceNode,
-  tracing as SdkTraceBase,
-  api as Api,
-} from "@opentelemetry/sdk-node";
 import { OTLPTraceExporter } from "@opentelemetry/exporter-trace-otlp-http";
 import { registerInstrumentations } from "@opentelemetry/instrumentation";
 import { ExpressInstrumentation } from "@opentelemetry/instrumentation-express";
 import { HttpInstrumentation } from "@opentelemetry/instrumentation-http";
-import { SemanticResourceAttributes } from "@opentelemetry/semantic-conventions";
+import * as sdk from "@opentelemetry/sdk-node";
+import { resource } from "./resource";
 
-const { Resource } = Resources;
-const { NodeTracerProvider } = SdkTraceNode;
+const { NodeTracerProvider } = sdk.node;
 const { SimpleSpanProcessor, BatchSpanProcessor, ConsoleSpanExporter } =
-  SdkTraceBase;
-const {
-  context,
-  trace,
-  diag,
-  DiagConsoleLogger,
-  DiagLogLevel,
-  SpanStatusCode,
-} = Api;
+  sdk.tracing;
+const { trace, SpanStatusCode } = sdk.api;
 
 const config = {
   debug: false,
-  consoleExporter: process.env.OTEL_CONSOLE_EXPORTER || true,
-  otlpTraceExporter: process.env.OTEL_OTLP_TRACE_EXPORTER || true,
+  consoleExporter: process.env.OTEL_CONSOLE_EXPORTER || false,
+  otlpTraceExporter: process.env.OTEL_OTLP_TRACE_EXPORTER || false,
 };
 
-setupTracing();
+// Setup as import side-effect
+// setupTracing();
 
 export function setupTracing() {
   console.log("setting up tracing");
   const { consoleExporter, otlpTraceExporter } = config;
 
-  // Not functionally required but gives some insight what happens behind the scenes
-  diag.setLogger(new DiagConsoleLogger(), DiagLogLevel.DEBUG);
-
-  const resource = new Resource({
-    [SemanticResourceAttributes.SERVICE_NAME]: process.env.SERVICE_NAME,
-  });
   const provider = new NodeTracerProvider({ resource });
 
   if (consoleExporter) {
