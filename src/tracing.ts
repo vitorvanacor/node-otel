@@ -13,11 +13,11 @@ const { trace, SpanStatusCode } = sdk.api;
 const config = {
   debug: false,
   consoleExporter: process.env.OTEL_CONSOLE_EXPORTER || false,
-  otlpTraceExporter: process.env.OTEL_OTLP_TRACE_EXPORTER || false,
+  otlpTraceExporter: process.env.OTEL_OTLP_TRACE_EXPORTER || true,
 };
 
 // Setup as import side-effect
-// setupTracing();
+setupTracing();
 
 export function setupTracing() {
   console.log("setting up tracing");
