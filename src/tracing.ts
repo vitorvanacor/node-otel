@@ -1,56 +1,36 @@
-import { OTLPTraceExporter } from "@opentelemetry/exporter-trace-otlp-http";
 import { registerInstrumentations } from "@opentelemetry/instrumentation";
 import { ExpressInstrumentation } from "@opentelemetry/instrumentation-express";
 import { HttpInstrumentation } from "@opentelemetry/instrumentation-http";
-import * as sdk from "@opentelemetry/sdk-node";
-import { resource } from "./resource";
+import * as otel from "@opentelemetry/sdk-node";
 
-const { NodeTracerProvider } = sdk.node;
-const { SimpleSpanProcessor, BatchSpanProcessor, ConsoleSpanExporter } =
-  sdk.tracing;
-const { trace, SpanStatusCode } = sdk.api;
+const { diag, DiagConsoleLogger, DiagLogLevel } = otel.api;
+diag.setLogger(new DiagConsoleLogger(), DiagLogLevel.DEBUG);
 
-const config = {
-  debug: false,
-  consoleExporter: process.env.OTEL_CONSOLE_EXPORTER || false,
-  otlpTraceExporter: process.env.OTEL_OTLP_TRACE_EXPORTER || true,
-};
+// Register as import side-effect
+console.log("registering instrumentations");
+registerInstrumentations({
+  instrumentations: [new HttpInstrumentation(), new ExpressInstrumentation()],
+});
+console.log("instrumentations registered");
 
-// Setup as import side-effect
-setupTracing();
+export class TraceProvider {
+  constructor(private name: string, private version: string) {}
 
-export function setupTracing() {
-  console.log("setting up tracing");
-  const { consoleExporter, otlpTraceExporter } = config;
-
-  const provider = new NodeTracerProvider({ resource });
-
-  if (consoleExporter) {
-    provider.addSpanProcessor(
-      new SimpleSpanProcessor(new ConsoleSpanExporter())
-    );
-  }
-  if (otlpTraceExporter) {
-    provider.addSpanProcessor(new BatchSpanProcessor(new OTLPTraceExporter()));
+  async withSpan(spanName, func: (span: otel.api.Span) => void) {
+    const tracer = otel.api.trace.getTracer(this.name, this.version);
+    tracer.startActiveSpan(spanName, async (span) => {
+      try {
+        await func(span);
+        span.setStatus({ code: otel.api.SpanStatusCode.OK }).end();
+      } catch (err) {
+        span.recordException(err);
+        span.setStatus({ code: otel.api.SpanStatusCode.ERROR }).end();
+        throw err;
+      }
+    });
   }
 
-  // Registering provider before instrumentation
-  provider.register();
-
-  registerInstrumentations({
-    instrumentations: [new HttpInstrumentation(), new ExpressInstrumentation()],
-  });
-}
-
-export async function withSpan(tracerName, spanName, func) {
-  const tracer = trace.getTracer(tracerName);
-  const span = tracer.startSpan(spanName);
-  try {
-    await func(span);
-    span.setStatus({ code: SpanStatusCode.OK }).end();
-  } catch (err) {
-    span.recordException(err);
-    span.setStatus({ code: SpanStatusCode.ERROR }).end();
-    throw err;
+  getActiveSpan() {
+    return otel.api.trace.getActiveSpan();
   }
 }
