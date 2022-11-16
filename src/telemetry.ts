@@ -1,25 +1,51 @@
-import "./tracing";
+import "./register-instrumentations-on-import";
 import * as otel from "@opentelemetry/sdk-node";
-import { MetricsProvider } from "./metrics";
+import { createMeterProvider } from "./metrics";
+import { awsEcsDetector } from "@opentelemetry/resource-detector-aws";
+import { OTEL_LOG_LEVEL } from "./environment";
+import { setupGlobalLogger } from "./logger";
+
+const {
+  envDetector,
+  processDetector,
+  osDetector,
+  hostDetector,
+  detectResources,
+} = otel.resources;
 
 export class Telemetry {
-  sdk: otel.NodeSDK;
-  metricsProvider: MetricsProvider;
+  private sdk: otel.NodeSDK;
+  private meterProvider?: otel.metrics.MeterProvider;
 
   constructor() {
-    const resource = new otel.resources.Resource({});
-    this.sdk = new otel.NodeSDK({ resource });
-    this.metricsProvider = new MetricsProvider(resource);
+    // We will detect resources manually in order to pass the resource to the MeterProvider
+    const autoDetectResources = false;
+    this.sdk = new otel.NodeSDK({ autoDetectResources });
   }
 
   async start() {
     console.log("Telemetry.start");
+    const resource = await detectResources({
+      detectors: [
+        envDetector,
+        processDetector,
+        osDetector,
+        hostDetector,
+        awsEcsDetector,
+      ],
+    });
+    // In order to have multiple metric readers, we manually create MeterProvider (instead of letting NodeSDK create it)
+    this.meterProvider = createMeterProvider(resource);
+    otel.api.metrics.setGlobalMeterProvider(this.meterProvider);
+
     await this.sdk.start();
-    console.log("sdk started");
+    if (OTEL_LOG_LEVEL !== otel.api.DiagLogLevel.VERBOSE) {
+      setupGlobalLogger(otel.api.DiagLogLevel.INFO);
+    }
   }
 
   async dispose() {
-    await this.metricsProvider.dispose();
+    await this.meterProvider?.shutdown();
     await this.sdk.shutdown();
   }
 }

@@ -5,54 +5,48 @@ import {
 import { PrometheusExporter } from "@opentelemetry/exporter-prometheus";
 import { OTLPMetricExporter } from "@opentelemetry/exporter-metrics-otlp-http";
 import * as otel from "@opentelemetry/sdk-node";
+import { logger } from "./logger";
+import {
+  OTEL_EXPORTER_OTLP_METRICS_INTERVAL,
+  OTEL_METRICS_EXPORTER,
+} from "./environment";
 
-export class MetricsProvider {
-  meterProvider: otel.metrics.MeterProvider;
+export function createMeterProvider(resource: otel.resources.Resource) {
+  const meterProvider = new otel.metrics.MeterProvider({ resource });
 
-  constructor(resource: otel.resources.Resource) {
-    // Provider
-    this.meterProvider = new otel.metrics.MeterProvider({ resource });
-
-    // Prometheus Exporter
-    const { endpoint, port } = PrometheusExporter.DEFAULT_OPTIONS;
-    const prometheusExporter = new PrometheusExporter({}, () => {
-      console.log(
-        `prometheus scrape endpoint: http://localhost:${port}${endpoint}`
-      );
-    });
-    this.meterProvider.addMetricReader(prometheusExporter);
-    // OTLP Exporter
-    const otlpExporter = new OTLPMetricExporter();
-    this.meterProvider.addMetricReader(
-      new otel.metrics.PeriodicExportingMetricReader({
-        exporter: otlpExporter,
-        exportIntervalMillis: 5000,
-      })
-    );
-
-    // Host Metrics
-    const hostMetrics = new HostMetrics({
-      name: "example-host-metrics",
-      meterProvider: this
-        .meterProvider as unknown as MetricsCollectorConfig["meterProvider"],
-    });
-    hostMetrics.start();
+  for (const reader of createMetricReadersFromEnv()) {
+    meterProvider.addMetricReader(reader);
   }
 
-  async dispose() {
-    await this.meterProvider.shutdown();
-  }
+  // Host Metrics
+  const hostMetrics = new HostMetrics({
+    name: "host-metrics",
+    meterProvider:
+      meterProvider as unknown as MetricsCollectorConfig["meterProvider"],
+  });
+  hostMetrics.start();
+
+  return meterProvider;
 }
 
-export class RequestMetrics {
-  private requestCounter: otel.api.Counter;
-
-  constructor(meterProvider: otel.metrics.MeterProvider) {
-    const requestMeter = meterProvider.getMeter("server-metrics", "0.0.1");
-    this.requestCounter = requestMeter.createCounter("request-count", {});
+function createMetricReadersFromEnv() {
+  logger.debug("OTEL_METRICS_EXPORTER", OTEL_METRICS_EXPORTER);
+  const exporterNames = OTEL_METRICS_EXPORTER.split(",");
+  const readers: otel.metrics.MetricReader[] = [];
+  if (exporterNames.includes("otlp")) {
+    const otlpExporter = new OTLPMetricExporter();
+    readers.push(
+      new otel.metrics.PeriodicExportingMetricReader({
+        exporter: otlpExporter,
+        exportIntervalMillis: OTEL_EXPORTER_OTLP_METRICS_INTERVAL,
+      })
+    );
   }
-
-  incrementRequestCount() {
-    this.requestCounter.add(1);
+  if (exporterNames.includes("prometheus")) {
+    readers.push(new PrometheusExporter());
   }
+  if (!readers.length && exporterNames[0] !== "none") {
+    logger.warn("invalid OTEL_METRICS_EXPORTER", OTEL_METRICS_EXPORTER);
+  }
+  return readers;
 }
