@@ -1,5 +1,5 @@
 import { Telemetry } from "./telemetry";
-import { ExpressMetrics } from "./express-metrics";
+import { expressMetricsMiddleware } from "./express-metrics-middleware";
 import express from "express";
 import { getActiveSpan, TraceProvider } from "./tracing";
 
@@ -10,11 +10,11 @@ export async function start() {
   const telemetry = new Telemetry();
   const trace = new TraceProvider("my-traced-lib", "1.0.0");
   await telemetry.start();
-  const expressMetrics = new ExpressMetrics();
   const app = express();
 
+  app.use(expressMetricsMiddleware());
+
   app.get("/", (req, res) => {
-    expressMetrics.incrementRequestCount();
     trace.withSpan("my-span", (span) => {
       span.setAttribute("my-span-attr", "attr created on setAttribute");
       span.addEvent("my-event");

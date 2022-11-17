@@ -3,17 +3,17 @@ import { ExpressInstrumentation } from "@opentelemetry/instrumentation-express";
 import { HttpInstrumentation } from "@opentelemetry/instrumentation-http";
 import { logger } from "./logger";
 
-export function setupInstrumentations() {
-  const HTTP_INSTRUMENTATION_IGNORE_INCOMING_PATHS = [
-    "/metrics",
-    "/health-check",
-    "/v1/status",
-  ];
-  const HTTP_INSTRUMENTATION_IGNORE_OUTGOING_PATHS = [
-    "/v1/metrics",
-    "/v1/traces",
-  ];
+const HTTP_INSTRUMENTATION_IGNORE_INCOMING_PATHS = [
+  "/metrics",
+  "/health-check",
+  "/v1/status",
+];
+const HTTP_INSTRUMENTATION_IGNORE_OUTGOING_PATHS = [
+  "/v1/metrics",
+  "/v1/traces",
+];
 
+export function setupInstrumentations() {
   // Register as import side-effect
   logger.debug(
     "HTTP_INSTRUMENTATION_IGNORE_INCOMING_PATHS",

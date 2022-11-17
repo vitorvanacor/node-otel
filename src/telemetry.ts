@@ -24,7 +24,6 @@ export class Telemetry {
   }
 
   async start() {
-    console.log("Telemetry.start");
     const resource = await detectResources({
       detectors: [
         envDetector,
@@ -34,6 +33,7 @@ export class Telemetry {
         awsEcsDetector,
       ],
     });
+    this.sdk.addResource(resource);
     // In order to have multiple metric readers, we manually create MeterProvider (instead of letting NodeSDK create it)
     this.meterProvider = createMeterProvider(resource);
     otel.api.metrics.setGlobalMeterProvider(this.meterProvider);
