@@ -10,6 +10,7 @@ import {
   OTEL_EXPORTER_OTLP_METRICS_INTERVAL,
   OTEL_METRICS_EXPORTER,
 } from "./environment";
+import { getHttpInstrumentation } from "./http-instrumentation";
 
 export function createMeterProvider(resource: otel.resources.Resource) {
   const meterProvider = new otel.metrics.MeterProvider({ resource });
@@ -17,6 +18,9 @@ export function createMeterProvider(resource: otel.resources.Resource) {
   for (const reader of createMetricReadersFromEnv()) {
     meterProvider.addMetricReader(reader);
   }
+
+  // Http Metrics
+  getHttpInstrumentation().setMeterProvider(meterProvider);
 
   // Host Metrics
   const hostMetrics = new HostMetrics({

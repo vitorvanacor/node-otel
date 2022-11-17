@@ -1,5 +1,4 @@
 import { Telemetry } from "./telemetry";
-import { expressMetricsMiddleware } from "./express-metrics-middleware";
 import express from "express";
 import { getActiveSpan, TraceProvider } from "./tracing";
 
@@ -11,8 +10,6 @@ export async function start() {
   const trace = new TraceProvider("my-traced-lib", "1.0.0");
   await telemetry.start();
   const app = express();
-
-  app.use(expressMetricsMiddleware());
 
   app.get("/", (req, res) => {
     trace.withSpan("my-span", (span) => {
