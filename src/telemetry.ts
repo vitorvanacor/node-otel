@@ -1,4 +1,5 @@
-import "./register-instrumentations-on-import";
+import "./setup-instrumentations-on-import";
+import { getInstrumentations } from "./instrumentation";
 import * as otel from "@opentelemetry/sdk-node";
 import { createMeterProvider } from "./metrics";
 import { awsEcsDetector } from "@opentelemetry/resource-detector-aws";
@@ -20,7 +21,8 @@ export class Telemetry {
   constructor() {
     // We will detect resources manually in order to pass the resource to the MeterProvider
     const autoDetectResources = false;
-    this.sdk = new otel.NodeSDK({ autoDetectResources });
+    const instrumentations = getInstrumentations();
+    this.sdk = new otel.NodeSDK({ autoDetectResources, instrumentations });
   }
 
   async start() {
